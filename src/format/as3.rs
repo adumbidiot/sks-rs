@@ -18,12 +18,12 @@ use boa::syntax::{
 };
 
 /// Try to decode a string as an as3 file format. View the tests to see what a valid file of this kind looks like.
-pub fn decode(data: &str) -> Result<Vec<Block>, Error> {
+pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
     let mut lexer = Lexer::new(data);
-    lexer.lex().map_err(Error::Lexer)?;
+    lexer.lex().map_err(DecodeError::Lexer)?;
 
     let mut parser = Parser::new(lexer.tokens);
-    let expr = parser.parse_all().map_err(Error::Parser)?;
+    let expr = parser.parse_all().map_err(DecodeError::Parser)?;
 
     match &expr.def {
         ExprDef::Block(exprs) => {
@@ -44,7 +44,7 @@ pub fn decode(data: &str) -> Result<Vec<Block>, Error> {
                 match level_num.as_ref() {
                     Some(v) => {
                         if *v != new_level_num {
-                            return Err(Error::InvalidLevelNum {
+                            return Err(DecodeError::InvalidLevelNum {
                                 expected: v.clone(),
                                 actual: new_level_num,
                             });
@@ -59,22 +59,22 @@ pub fn decode(data: &str) -> Result<Vec<Block>, Error> {
             }
 
             if height != crate::LEVEL_HEIGHT {
-                return Err(Error::InvalidHeight(height));
+                return Err(DecodeError::InvalidHeight(height));
             }
 
             let size = ret.len();
 
             if size != crate::LEVEL_SIZE {
-                return Err(Error::InvalidLevelSize(size));
+                return Err(DecodeError::InvalidLevelSize(size));
             }
 
-            Ok(ret)
+            Ok((level_num.ok_or(DecodeError::MissingLevelNum)?, ret))
         }
-        _ => Err(Error::InvalidBaseExpr(expr)),
+        _ => Err(DecodeError::InvalidBaseExpr(expr)),
     }
 }
 
-fn parse_lhs(expr: &Expr, expected_row: usize) -> Result<LevelNum, Error> {
+fn parse_lhs(expr: &Expr, expected_row: usize) -> Result<LevelNum, DecodeError> {
     match &expr.def {
         ExprDef::GetField(lhs, rhs) => {
             validate_lhs_row_num(rhs, expected_row)?;
@@ -83,82 +83,82 @@ fn parse_lhs(expr: &Expr, expected_row: usize) -> Result<LevelNum, Error> {
                     validate_level_array_name(lhs)?;
                     parse_level_num(rhs)
                 }
-                _ => Err(Error::InvalidLhsExpr(expr.clone())),
+                _ => Err(DecodeError::InvalidLhsExpr(expr.clone())),
             }
         }
-        _ => Err(Error::InvalidGlobalLhsExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidGlobalLhsExpr(expr.clone())),
     }
 }
 
-fn parse_level_num(expr: &Expr) -> Result<LevelNum, Error> {
+fn parse_level_num(expr: &Expr) -> Result<LevelNum, DecodeError> {
     match &expr.def {
         ExprDef::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
         ExprDef::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
         ExprDef::Local(s) => Ok(LevelNum::String(s.clone())),
-        _ => Err(Error::InvalidLevelNumExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidLevelNumExpr(expr.clone())),
     }
 }
 
-fn validate_level_array_name(expr: &Expr) -> Result<(), Error> {
+fn validate_level_array_name(expr: &Expr) -> Result<(), DecodeError> {
     match &expr.def {
         ExprDef::Local(s) => {
             if s != "lvlArray" {
-                Err(Error::InvalidLevelArrayName(s.into()))
+                Err(DecodeError::InvalidLevelArrayName(s.into()))
             } else {
                 Ok(())
             }
         }
-        _ => Err(Error::InvalidLevelArrayNameExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidLevelArrayNameExpr(expr.clone())),
     }
 }
 
-fn validate_lhs_row_num(expr: &Expr, expected_row: usize) -> Result<(), Error> {
+fn validate_lhs_row_num(expr: &Expr, expected_row: usize) -> Result<(), DecodeError> {
     match &expr.def {
         ExprDef::Const(Const::Num(n)) => {
             let n = *n as usize;
             if n != expected_row {
-                return Err(Error::InvalidRowNum {
+                return Err(DecodeError::InvalidRowNum {
                     expected: expected_row,
                     actual: n,
                 });
             }
         }
         _ => {
-            return Err(Error::InvalidRowNumExpr(expr.clone()));
+            return Err(DecodeError::InvalidRowNumExpr(expr.clone()));
         }
     }
 
     Ok(())
 }
 
-fn parse_row(expr: &Expr) -> Result<Vec<Block>, Error> {
+fn parse_row(expr: &Expr) -> Result<Vec<Block>, DecodeError> {
     match &expr.def {
         ExprDef::ArrayDecl(exprs) => {
             let width = exprs.len();
             if width != crate::LEVEL_WIDTH {
-                return Err(Error::InvalidWidth(width));
+                return Err(DecodeError::InvalidWidth(width));
             }
 
             exprs.iter().map(parse_cell).collect()
         }
-        _ => Err(Error::InvalidRowExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidRowExpr(expr.clone())),
     }
 }
 
-fn parse_cell(expr: &Expr) -> Result<Block, Error> {
+fn parse_cell(expr: &Expr) -> Result<Block, DecodeError> {
     match &expr.def {
         ExprDef::Const(Const::Num(n)) => {
             if *n == 0.0 {
                 Ok(Block::Empty)
             } else {
-                Err(Error::InvalidLbl(n.to_string()))
+                Err(DecodeError::InvalidLbl(n.to_string()))
             }
         }
         ExprDef::Const(Const::String(v)) => {
-            Block::from_lbl(v).map_err(|s| Error::InvalidLbl(s.into()))
+            Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into()))
         }
-        ExprDef::Local(v) => Block::from_lbl(v).map_err(|s| Error::InvalidLbl(s.into())),
-        _ => Err(Error::InvalidCellExpr(expr.clone())),
+        ExprDef::Local(v) => Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into())),
+        _ => Err(DecodeError::InvalidCellExpr(expr.clone())),
     }
 }
 
@@ -169,9 +169,18 @@ pub enum LevelNum {
     Num(usize),
 }
 
-/// The Errors an as3 file can have.
+impl std::fmt::Display for LevelNum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::String(s) => s.fmt(f),
+            Self::Num(n) => n.fmt(f),
+        }
+    }
+}
+
+/// The errors reading an as3 file can have.
 #[derive(Debug)]
-pub enum Error {
+pub enum DecodeError {
     Lexer(LexerError),
     Parser(ParseError),
 
@@ -203,4 +212,46 @@ pub enum Error {
     InvalidLbl(String),
 
     InvalidLevelSize(usize),
+
+    MissingLevelNum,
+}
+
+/// Encode blocks to as3
+pub fn encode(blocks: &[Block], level_num: &LevelNum) -> Result<String, EncodeError> {
+    let len = blocks.len();
+    if len != crate::LEVEL_SIZE {
+        return Err(EncodeError::InvalidLength(len));
+    }
+
+    let mut ret = String::new(); //TODO: Find good size to preallocate
+
+    for (i, row) in blocks.chunks(crate::LEVEL_WIDTH).enumerate() {
+        ret += &format!("lvlArray[{}][{}] = [", level_num, i);
+        for (j, block) in row.iter().enumerate() {
+            match block {
+                Block::Note { .. } => {
+                    ret += "\"";
+                    ret += &block.as_lbl();
+                    ret += "\"";
+                }
+                _ => {
+                    ret += &block.as_lbl();
+                }
+            }
+
+            if j == crate::LEVEL_WIDTH - 1 {
+                ret += "];\n"
+            } else {
+                ret += ", ";
+            }
+        }
+    }
+
+    Ok(ret)
+}
+
+/// Errors that can occur while encoding as3
+#[derive(Debug)]
+pub enum EncodeError {
+    InvalidLength(usize),
 }
