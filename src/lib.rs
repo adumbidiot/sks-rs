@@ -2,6 +2,8 @@
 pub mod block;
 /// Utilities for working with file formats
 pub mod format;
+/// Utilities for rendering blocks
+pub mod render;
 
 /// The width of a level, in blocks
 pub const LEVEL_WIDTH: usize = 32;

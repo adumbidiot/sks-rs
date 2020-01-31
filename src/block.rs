@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 /// An entity that occupies a space in lbl representation.
 /// Also the internal rep  of a "block" in this library.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Block {
     Background { background_type: BackgroundType },
     Block,
@@ -159,6 +159,13 @@ impl Block {
             Block::Wire => "WR".into(),
         }
     }
+
+    pub fn is_background(&self) -> bool {
+        match self {
+            Self::Background { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 impl Default for Block {
@@ -169,7 +176,7 @@ impl Default for Block {
 }
 
 /// The directions something could face
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Direction {
     Up,
     Down,
@@ -178,7 +185,7 @@ pub enum Direction {
 }
 
 /// The types for backgrounds
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BackgroundType {
     Cobble,
     Waterfall,

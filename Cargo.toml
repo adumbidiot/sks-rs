@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 Boa = "0.5.1"
+image = "0.22.4"
