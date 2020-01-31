@@ -41,4 +41,4 @@ fn image_renderer_cache() {
     assert!(time1 > time2);
 }
 
-/// TODO: Consider adding tests comparing actual rendered data. This might fail after bumping the image crate.
+// TODO: Consider adding tests comparing actual rendered data. This might fail after bumping the image crate.

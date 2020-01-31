@@ -17,7 +17,7 @@ CI
 CO
 CP
 CS
-Note: stuff
+Note:stuff
 X0
 E0
 WR

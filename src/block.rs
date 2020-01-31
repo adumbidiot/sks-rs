@@ -88,7 +88,7 @@ impl Block {
             "X0" => Ok(Block::Player),
             "WR" => Ok(Block::Wire),
             data => {
-                let note_prefix = "Note: ";
+                let note_prefix = "Note:";
                 if data.starts_with(note_prefix) {
                     let text = String::from(data.get(note_prefix.len()..).unwrap());
                     Ok(Block::Note { text })
@@ -129,7 +129,7 @@ impl Block {
             Block::Exit => "E0".into(),
             Block::Key => "IK".into(),
             Block::Lock => "BK".into(),
-            Block::Note { text } => format!("Note: {}", text).into(),
+            Block::Note { text } => format!("Note:{}", text).into(),
             Block::OneWayWall {
                 direction: Direction::Down,
             } => "OD".into(),
