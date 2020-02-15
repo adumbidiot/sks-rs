@@ -5,5 +5,5 @@ authors = [ "adumbidiot <nathaniel.daniel23@outlook.com>" ]
 edition = "2018"
 
 [dependencies]
-Boa = "0.5.1"
-image = "0.22.4"
+Boa = { version = "0.6.0", default-features = false }
+image = "0.23.0"

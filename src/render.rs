@@ -6,15 +6,15 @@ use crate::block::{
 use std::collections::HashMap;
 
 macro_rules! load_blocks {
-	(
-		$(
-			$b:ident
-		),*
-	) => {
-		$(
-			pub const $b: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/", stringify!($b), ".png"));
-		)*
-	}
+    (
+        $(
+            $b:ident
+        ),*
+    ) => {
+        $(
+            pub const $b: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/", stringify!($b), ".png"));
+        )*
+    }
 }
 
 load_blocks! {
@@ -111,7 +111,7 @@ impl ImageRenderer {
     }
 
     /// Get a resized image from the cache, else resize it and cache it, returning a reference.
-    fn get_rendered(&mut self, r: ImageRequest) -> Option<&image::DynamicImage> {
+    pub fn get_rendered(&mut self, r: ImageRequest) -> Option<&image::DynamicImage> {
         self.cache
             .entry(r.clone())
             .or_insert_with(|| Self::generate_block_image(&r))
@@ -119,7 +119,7 @@ impl ImageRenderer {
     }
 
     /// Generates a new block image. returns None if it is an empty image. TODO: Consider Error Texture
-    fn generate_block_image(r: &ImageRequest) -> Option<image::DynamicImage> {
+    pub fn generate_block_image(r: &ImageRequest) -> Option<image::DynamicImage> {
         let img = match &r.block {
             Block::Background {
                 background_type: BackgroundType::Cobble,
@@ -170,8 +170,8 @@ impl ImageRenderer {
 
         Some(
             image::load_from_memory(img)
-                .unwrap() // If it doesn't decode what am i doing with my life
-                .resize(r.w, r.h, image::FilterType::Nearest),
+                .expect("Valid Embedded image")
+                .resize(r.w, r.h, image::imageops::FilterType::Triangle),
         )
     }
 }
@@ -191,10 +191,10 @@ pub enum RenderError {
 
 /// A "request" for block data from the cache
 #[derive(Clone, PartialEq, Eq, Hash)]
-struct ImageRequest {
-    w: u32,
-    h: u32,
-    block: Block,
+pub struct ImageRequest {
+    pub w: u32,
+    pub h: u32,
+    pub block: Block,
 }
 
 /// Options for rendering
