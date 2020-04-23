@@ -1,17 +1,26 @@
 name: Rust
 
+env:
+  RUST_BACKTRACE: 1
+
 on:
   push:
-    branches: [ master ]
+    branches: 
+      - master
   pull_request:
-    branches: [ master ]
+    branches: 
+      - master
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: 
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
