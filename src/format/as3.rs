@@ -2,10 +2,7 @@ use crate::block::Block;
 use boa::syntax::{
     ast::{
         constant::Const,
-        expr::{
-            Expr,
-            ExprDef,
-        },
+        node::Node,
     },
     lexer::{
         Lexer,
@@ -22,19 +19,19 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
     let mut lexer = Lexer::new(data);
     lexer.lex().map_err(DecodeError::Lexer)?;
 
-    let mut parser = Parser::new(lexer.tokens);
-    let expr = parser.parse_all().map_err(DecodeError::Parser)?;
+    let mut parser = Parser::new(&lexer.tokens);
+    let node = parser.parse_all().map_err(DecodeError::Parser)?;
 
-    match &expr.def {
-        ExprDef::Block(exprs) => {
+    match &node {
+        Node::StatementList(exprs) => {
             let mut height = 0;
             let mut level_num: Option<LevelNum> = None;
             let mut ret = Vec::with_capacity(crate::LEVEL_SIZE);
 
             for (i, (lhs, rhs)) in exprs
                 .iter()
-                .filter_map(|expr| match &expr.def {
-                    ExprDef::Assign(lhs, rhs) => Some((lhs, rhs)),
+                .filter_map(|node| match node {
+                    Node::Assign(lhs, rhs) => Some((lhs, rhs)),
                     _ => None,
                 })
                 .enumerate()
@@ -70,51 +67,51 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
 
             Ok((level_num.ok_or(DecodeError::MissingLevelNum)?, ret))
         }
-        _ => Err(DecodeError::InvalidBaseExpr(expr)),
+        _ => Err(DecodeError::InvalidBaseExpr(node)),
     }
 }
 
-fn parse_lhs(expr: &Expr, expected_row: usize) -> Result<LevelNum, DecodeError> {
-    match &expr.def {
-        ExprDef::GetField(lhs, rhs) => {
+fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNum, DecodeError> {
+    match node {
+        Node::GetField(lhs, rhs) => {
             validate_lhs_row_num(rhs, expected_row)?;
-            match &lhs.def {
-                ExprDef::GetField(lhs, rhs) => {
+            match &**lhs {
+                Node::GetField(lhs, rhs) => {
                     validate_level_array_name(lhs)?;
                     parse_level_num(rhs)
                 }
-                _ => Err(DecodeError::InvalidLhsExpr(expr.clone())),
+                _ => Err(DecodeError::InvalidLhsExpr(node.clone())),
             }
         }
-        _ => Err(DecodeError::InvalidGlobalLhsExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidGlobalLhsExpr(node.clone())),
     }
 }
 
-fn parse_level_num(expr: &Expr) -> Result<LevelNum, DecodeError> {
-    match &expr.def {
-        ExprDef::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
-        ExprDef::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
-        ExprDef::Local(s) => Ok(LevelNum::String(s.clone())),
-        _ => Err(DecodeError::InvalidLevelNumExpr(expr.clone())),
+fn parse_level_num(node: &Node) -> Result<LevelNum, DecodeError> {
+    match &node {
+        Node::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
+        Node::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
+        Node::Local(s) => Ok(LevelNum::String(s.clone())),
+        _ => Err(DecodeError::InvalidLevelNumExpr(node.clone())),
     }
 }
 
-fn validate_level_array_name(expr: &Expr) -> Result<(), DecodeError> {
-    match &expr.def {
-        ExprDef::Local(s) => {
+fn validate_level_array_name(node: &Node) -> Result<(), DecodeError> {
+    match &node {
+        Node::Local(s) => {
             if s != "lvlArray" {
                 Err(DecodeError::InvalidLevelArrayName(s.into()))
             } else {
                 Ok(())
             }
         }
-        _ => Err(DecodeError::InvalidLevelArrayNameExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidLevelArrayNameExpr(node.clone())),
     }
 }
 
-fn validate_lhs_row_num(expr: &Expr, expected_row: usize) -> Result<(), DecodeError> {
-    match &expr.def {
-        ExprDef::Const(Const::Num(n)) => {
+fn validate_lhs_row_num(node: &Node, expected_row: usize) -> Result<(), DecodeError> {
+    match &node {
+        Node::Const(Const::Num(n)) => {
             let n = *n as usize;
             if n != expected_row {
                 return Err(DecodeError::InvalidRowNum {
@@ -124,16 +121,16 @@ fn validate_lhs_row_num(expr: &Expr, expected_row: usize) -> Result<(), DecodeEr
             }
         }
         _ => {
-            return Err(DecodeError::InvalidRowNumExpr(expr.clone()));
+            return Err(DecodeError::InvalidRowNumExpr(node.clone()));
         }
     }
 
     Ok(())
 }
 
-fn parse_row(expr: &Expr) -> Result<Vec<Block>, DecodeError> {
-    match &expr.def {
-        ExprDef::ArrayDecl(exprs) => {
+fn parse_row(node: &Node) -> Result<Vec<Block>, DecodeError> {
+    match &node {
+        Node::ArrayDecl(exprs) => {
             let width = exprs.len();
             if width != crate::LEVEL_WIDTH {
                 return Err(DecodeError::InvalidWidth(width));
@@ -141,24 +138,24 @@ fn parse_row(expr: &Expr) -> Result<Vec<Block>, DecodeError> {
 
             exprs.iter().map(parse_cell).collect()
         }
-        _ => Err(DecodeError::InvalidRowExpr(expr.clone())),
+        _ => Err(DecodeError::InvalidRowExpr(node.clone())),
     }
 }
 
-fn parse_cell(expr: &Expr) -> Result<Block, DecodeError> {
-    match &expr.def {
-        ExprDef::Const(Const::Num(n)) => {
+fn parse_cell(node: &Node) -> Result<Block, DecodeError> {
+    match &node {
+        Node::Const(Const::Num(n)) => {
             if *n == 0.0 {
                 Ok(Block::Empty)
             } else {
                 Err(DecodeError::InvalidLbl(n.to_string()))
             }
         }
-        ExprDef::Const(Const::String(v)) => {
+        Node::Const(Const::String(v)) => {
             Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into()))
         }
-        ExprDef::Local(v) => Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into())),
-        _ => Err(DecodeError::InvalidCellExpr(expr.clone())),
+        Node::Local(v) => Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into())),
+        _ => Err(DecodeError::InvalidCellExpr(node.clone())),
     }
 }
 
@@ -184,31 +181,31 @@ pub enum DecodeError {
     Lexer(LexerError),
     Parser(ParseError),
 
-    InvalidBaseExpr(Expr),
+    InvalidBaseExpr(Node),
     InvalidHeight(usize),
 
-    InvalidGlobalLhsExpr(Expr),
-    InvalidLhsExpr(Expr),
+    InvalidGlobalLhsExpr(Node),
+    InvalidLhsExpr(Node),
 
-    InvalidLevelArrayNameExpr(Expr),
+    InvalidLevelArrayNameExpr(Node),
     InvalidLevelArrayName(String),
 
-    InvalidLevelNumExpr(Expr),
+    InvalidLevelNumExpr(Node),
     InvalidLevelNum {
         expected: LevelNum,
         actual: LevelNum,
     },
 
-    InvalidRowNumExpr(Expr),
+    InvalidRowNumExpr(Node),
     InvalidRowNum {
         expected: usize,
         actual: usize,
     },
 
-    InvalidRowExpr(Expr),
+    InvalidRowExpr(Node),
     InvalidWidth(usize),
 
-    InvalidCellExpr(Expr),
+    InvalidCellExpr(Node),
     InvalidLbl(String),
 
     InvalidLevelSize(usize),
