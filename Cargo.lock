@@ -2,14 +2,16 @@
 # It is not intended for manual editing.
 [[package]]
 name = "Boa"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "691645f2f429aeffdce7fcd95fddc1f57fe6dc4e7dc60eb6575956b075b29b1c"
+checksum = "585ad54de6449442798ee23af80e706d53540129c0450d178c6c596f30f4bdec"
 dependencies = [
  "gc",
- "gc_derive",
+ "num-bigint",
+ "num-traits",
  "rand",
  "regex",
+ "rustc-hash",
  "serde_json",
 ]
 
@@ -138,9 +140,12 @@ checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
 
 [[package]]
 name = "gc"
-version = "0.3.3"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75656800ec248b3d0c33b685e442a67e7308009ae59b1f8eb60c4f09ebebb512"
+checksum = "1a56d49bc3e3be03d3432ba45e0503aa13f7e0ad2fc2e6d8ab50b33725b3d767"
+dependencies = [
+ "gc_derive",
+]
 
 [[package]]
 name = "gc_derive"
@@ -272,6 +277,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa679ff6578b1cddee93d7e82e263b94a575e0bfced07284eb0c037c1d2416a5"
 dependencies = [
  "adler32",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "090c7f9998ee0ff65aa5b723e4009f7b217707f1fb5ea551329cc4d6231fb304"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -433,6 +450,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fe5bd57d1d7414c6b5ed48563a2c855d995ff777729dcd91c369ec7fea395ae"
 
 [[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+
+[[package]]
 name = "ryu"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -458,9 +481,9 @@ checksum = "36df6ac6412072f67cf767ebbde4133a5b2e88e76dc6187fa7104cd16f783399"
 
 [[package]]
 name = "serde_json"
-version = "1.0.51"
+version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da07b57ee2623368351e9a0488bb0b261322a15a6e0ae53e243cbdc0f4208da9"
+checksum = "993948e75b189211a9b31a7528f950c6adc21f9720b6438ff80a7fa2f864cea2"
 dependencies = [
  "itoa",
  "ryu",
