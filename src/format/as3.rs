@@ -9,7 +9,7 @@ use boa::syntax::{
         LexerError,
     },
     parser::{
-        ParseError,
+        error::ParseError,
         Parser,
     },
 };
@@ -90,6 +90,7 @@ fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNum, DecodeError> 
 fn parse_level_num(node: &Node) -> Result<LevelNum, DecodeError> {
     match &node {
         Node::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
+        Node::Const(Const::Int(n)) => Ok(LevelNum::Num(*n as usize)),
         Node::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
         Node::Local(s) => Ok(LevelNum::String(s.clone())),
         _ => Err(DecodeError::InvalidLevelNumExpr(node.clone())),
@@ -112,6 +113,15 @@ fn validate_level_array_name(node: &Node) -> Result<(), DecodeError> {
 fn validate_lhs_row_num(node: &Node, expected_row: usize) -> Result<(), DecodeError> {
     match &node {
         Node::Const(Const::Num(n)) => {
+            let n = *n as usize;
+            if n != expected_row {
+                return Err(DecodeError::InvalidRowNum {
+                    expected: expected_row,
+                    actual: n,
+                });
+            }
+        }
+        Node::Const(Const::Int(n)) => {
             let n = *n as usize;
             if n != expected_row {
                 return Err(DecodeError::InvalidRowNum {
@@ -146,6 +156,13 @@ fn parse_cell(node: &Node) -> Result<Block, DecodeError> {
     match &node {
         Node::Const(Const::Num(n)) => {
             if *n == 0.0 {
+                Ok(Block::Empty)
+            } else {
+                Err(DecodeError::InvalidLbl(n.to_string()))
+            }
+        }
+        Node::Const(Const::Int(n)) => {
+            if *n == 0 {
                 Ok(Block::Empty)
             } else {
                 Err(DecodeError::InvalidLbl(n.to_string()))
