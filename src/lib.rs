@@ -11,3 +11,5 @@ pub const LEVEL_WIDTH: usize = 32;
 pub const LEVEL_HEIGHT: usize = 18;
 /// The length of a level, in blocks. Equal to width * height.
 pub const LEVEL_SIZE: usize = LEVEL_WIDTH * LEVEL_HEIGHT;
+
+pub use crate::block::Block;
