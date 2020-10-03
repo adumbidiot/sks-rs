@@ -161,10 +161,11 @@ impl Block {
     }
 
     pub fn is_background(&self) -> bool {
-        match self {
-            Self::Background { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Background { .. })
+    }
+
+    pub fn is_note(&self) -> bool {
+        matches!(self, Self::Note { .. })
     }
 }
 
