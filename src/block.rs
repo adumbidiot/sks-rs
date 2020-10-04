@@ -159,11 +159,18 @@ impl Block {
             Block::Wire => "WR".into(),
         }
     }
+    
+    /// Return true if is is empty
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty { .. })
+    }
 
+    /// Returns true if it is a background
     pub fn is_background(&self) -> bool {
         matches!(self, Self::Background { .. })
     }
 
+    /// Returns true if it is a note
     pub fn is_note(&self) -> bool {
         matches!(self, Self::Note { .. })
     }
