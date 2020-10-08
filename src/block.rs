@@ -159,7 +159,7 @@ impl Block {
             Block::Wire => "WR".into(),
         }
     }
-    
+
     /// Return true if is is empty
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty { .. })
