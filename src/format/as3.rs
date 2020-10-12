@@ -4,16 +4,12 @@ use boa::syntax::{
         constant::Const,
         node::Node,
     },
-    parser::{
-        error::ParseError,
-        Parser,
-    },
+    parser::error::ParseError,
 };
 
 /// Try to decode a string as an as3 file format. View the tests to see what a valid file of this kind looks like.
 pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
-    let mut parser = Parser::new(std::io::Cursor::new(data));
-    let statement_list = parser.parse_all().map_err(DecodeError::Parser)?;
+    let statement_list = boa::parse(data)?;
 
     let mut height = 0;
     let mut level_num: Option<LevelNum> = None;
@@ -221,6 +217,12 @@ pub enum DecodeError {
     InvalidLevelSize(usize),
 
     MissingLevelNum,
+}
+
+impl From<ParseError> for DecodeError {
+    fn from(e: ParseError) -> Self {
+        DecodeError::Parser(e)
+    }
 }
 
 /// Encode blocks to as3
