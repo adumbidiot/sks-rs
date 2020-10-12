@@ -4,10 +4,6 @@ use boa::syntax::{
         constant::Const,
         node::Node,
     },
-    lexer::{
-        Lexer,
-        LexerError,
-    },
     parser::{
         error::ParseError,
         Parser,
@@ -16,69 +12,65 @@ use boa::syntax::{
 
 /// Try to decode a string as an as3 file format. View the tests to see what a valid file of this kind looks like.
 pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
-    let mut lexer = Lexer::new(data);
-    lexer.lex().map_err(DecodeError::Lexer)?;
+    let mut parser = Parser::new(std::io::Cursor::new(data));
+    let statement_list = parser.parse_all().map_err(DecodeError::Parser)?;
 
-    let mut parser = Parser::new(&lexer.tokens);
-    let node = parser.parse_all().map_err(DecodeError::Parser)?;
+    let mut height = 0;
+    let mut level_num: Option<LevelNum> = None;
+    let mut ret = Vec::with_capacity(crate::LEVEL_SIZE);
 
-    match &node {
-        Node::StatementList(exprs) => {
-            let mut height = 0;
-            let mut level_num: Option<LevelNum> = None;
-            let mut ret = Vec::with_capacity(crate::LEVEL_SIZE);
+    for (i, assign) in statement_list
+        .statements()
+        .iter()
+        .filter_map(|node| match node {
+            Node::Assign(assign) => Some(assign),
+            _ => None,
+        })
+        .enumerate()
+    {
+        let lhs = assign.lhs();
+        let rhs = assign.rhs();
 
-            for (i, (lhs, rhs)) in exprs
-                .iter()
-                .filter_map(|node| match node {
-                    Node::Assign(lhs, rhs) => Some((lhs, rhs)),
-                    _ => None,
-                })
-                .enumerate()
-            {
-                height += 1;
-                let new_level_num = parse_lhs(&lhs, i)?;
-                match level_num.as_ref() {
-                    Some(v) => {
-                        if *v != new_level_num {
-                            return Err(DecodeError::InvalidLevelNum {
-                                expected: v.clone(),
-                                actual: new_level_num,
-                            });
-                        }
-                    }
-                    None => {
-                        level_num = Some(new_level_num);
-                    }
+        height += 1;
+        let new_level_num = parse_lhs(&lhs, i)?;
+        match level_num.as_ref() {
+            Some(v) => {
+                if *v != new_level_num {
+                    return Err(DecodeError::InvalidLevelNum {
+                        expected: v.clone(),
+                        actual: new_level_num,
+                    });
                 }
-
-                ret.extend(parse_row(rhs)?);
             }
-
-            if height != crate::LEVEL_HEIGHT {
-                return Err(DecodeError::InvalidHeight(height));
+            None => {
+                level_num = Some(new_level_num);
             }
-
-            let size = ret.len();
-
-            if size != crate::LEVEL_SIZE {
-                return Err(DecodeError::InvalidLevelSize(size));
-            }
-
-            Ok((level_num.ok_or(DecodeError::MissingLevelNum)?, ret))
         }
-        _ => Err(DecodeError::InvalidBaseExpr(node)),
+
+        ret.extend(parse_row(rhs)?);
     }
+
+    if height != crate::LEVEL_HEIGHT {
+        return Err(DecodeError::InvalidHeight(height));
+    }
+
+    let size = ret.len();
+
+    if size != crate::LEVEL_SIZE {
+        return Err(DecodeError::InvalidLevelSize(size));
+    }
+
+    Ok((level_num.ok_or(DecodeError::MissingLevelNum)?, ret))
 }
 
 fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNum, DecodeError> {
     match node {
-        Node::GetField(lhs, rhs) => {
-            validate_lhs_row_num(rhs, expected_row)?;
-            match &**lhs {
-                Node::GetField(lhs, rhs) => {
-                    validate_level_array_name(lhs)?;
-                    parse_level_num(rhs)
+        Node::GetField(get_field) => {
+            validate_lhs_row_num(get_field.field(), expected_row)?;
+            match get_field.obj() {
+                Node::GetField(get_field) => {
+                    validate_level_array_name(get_field.obj())?;
+                    parse_level_num(get_field.field())
                 }
                 _ => Err(DecodeError::InvalidLhsExpr(node.clone())),
             }
@@ -91,20 +83,21 @@ fn parse_level_num(node: &Node) -> Result<LevelNum, DecodeError> {
     match &node {
         Node::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
         Node::Const(Const::Int(n)) => Ok(LevelNum::Num(*n as usize)),
-        Node::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
-        Node::Local(s) => Ok(LevelNum::String(s.clone())),
+        Node::Const(Const::String(s)) => Ok(LevelNum::String(s.to_string())),
+        Node::Identifier(identifier) => Ok(LevelNum::String(identifier.as_ref().to_string())),
         _ => Err(DecodeError::InvalidLevelNumExpr(node.clone())),
     }
 }
 
 fn validate_level_array_name(node: &Node) -> Result<(), DecodeError> {
     match &node {
-        Node::Local(s) => {
-            if s != "lvlArray" {
-                Err(DecodeError::InvalidLevelArrayName(s.into()))
-            } else {
-                Ok(())
+        Node::Identifier(identifier) => {
+            if identifier.as_ref() != "lvlArray" {
+                return Err(DecodeError::InvalidLevelArrayName(
+                    identifier.as_ref().into(),
+                ));
             }
+            Ok(())
         }
         _ => Err(DecodeError::InvalidLevelArrayNameExpr(node.clone())),
     }
@@ -141,12 +134,12 @@ fn validate_lhs_row_num(node: &Node, expected_row: usize) -> Result<(), DecodeEr
 fn parse_row(node: &Node) -> Result<Vec<Block>, DecodeError> {
     match &node {
         Node::ArrayDecl(exprs) => {
-            let width = exprs.len();
+            let width = exprs.as_ref().len();
             if width != crate::LEVEL_WIDTH {
                 return Err(DecodeError::InvalidWidth(width));
             }
 
-            exprs.iter().map(parse_cell).collect()
+            exprs.as_ref().iter().map(parse_cell).collect()
         }
         _ => Err(DecodeError::InvalidRowExpr(node.clone())),
     }
@@ -171,7 +164,9 @@ fn parse_cell(node: &Node) -> Result<Block, DecodeError> {
         Node::Const(Const::String(v)) => {
             Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into()))
         }
-        Node::Local(v) => Block::from_lbl(v).map_err(|s| DecodeError::InvalidLbl(s.into())),
+        Node::Identifier(v) => {
+            Block::from_lbl(v.as_ref()).map_err(|s| DecodeError::InvalidLbl(s.into()))
+        }
         _ => Err(DecodeError::InvalidCellExpr(node.clone())),
     }
 }
@@ -195,10 +190,8 @@ impl std::fmt::Display for LevelNum {
 /// The errors reading an as3 file can have.
 #[derive(Debug)]
 pub enum DecodeError {
-    Lexer(LexerError),
     Parser(ParseError),
 
-    InvalidBaseExpr(Node),
     InvalidHeight(usize),
 
     InvalidGlobalLhsExpr(Node),
