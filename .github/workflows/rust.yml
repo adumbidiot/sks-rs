@@ -12,6 +12,32 @@ on:
       - master
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy 
+          override: true
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: '-- --check --color always'
+      - name: Fetch
+        uses: actions-rs/cargo@v1
+        with:
+          command: fetch
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: '--tests -- -D warnings'
   build:
     runs-on: ${{ matrix.os }}
     strategy:
