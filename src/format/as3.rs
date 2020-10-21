@@ -24,11 +24,8 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
         })
         .enumerate()
     {
-        let lhs = assign.lhs();
-        let rhs = assign.rhs();
-
         height += 1;
-        let new_level_num = parse_lhs(&lhs, i)?;
+        let new_level_num = parse_lhs(assign.lhs(), i)?;
         match level_num.as_ref() {
             Some(v) => {
                 if *v != new_level_num {
@@ -43,7 +40,7 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
             }
         }
 
-        ret.extend(parse_row(rhs)?);
+        ret.extend(parse_row(assign.rhs())?);
     }
 
     if height != crate::LEVEL_HEIGHT {

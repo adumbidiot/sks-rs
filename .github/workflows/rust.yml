@@ -18,21 +18,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           components: rustfmt, clippy 
           override: true
+          
       - name: Rustfmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: '-- --check --color always'
+          
       - name: Fetch
         uses: actions-rs/cargo@v1
         with:
           command: fetch
+          
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
@@ -44,9 +48,12 @@ jobs:
     steps: 
       - name: Checkout
         uses: actions/checkout@v2
+        
       - name: Deny
         uses: EmbarkStudios/cargo-deny-action@v1
+        
   build:
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -55,8 +62,11 @@ jobs:
           - macos-latest
           - windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+      
     - name: Build
       run: cargo build --verbose
+      
     - name: Run tests
       run: cargo test --verbose
