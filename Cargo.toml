@@ -7,4 +7,4 @@ license = "MIT"
 
 [dependencies]
 Boa = { version = "0.8.0", default-features = false }
-image = "0.23.11"
+image = "0.23.12"
