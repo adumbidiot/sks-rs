@@ -1,4 +1,4 @@
-use crate::block::Block;
+use crate::Block;
 
 /// Parse an lbl file. This is a compact, yet readable level representation. It is the core of block representation. Look at the tests for an example file.
 pub fn decode(data: &str) -> Result<Vec<Block>, DecodeError> {

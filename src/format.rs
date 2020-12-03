@@ -73,9 +73,14 @@ pub fn encode(
 }
 
 /// Errors that can occur while encoding files
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EncodeError {
+    #[error("missing level number")]
     MissingLevelNum,
-    Lbl(self::lbl::EncodeError),
-    As3(self::as3::EncodeError),
+    
+    #[error("{0}")]
+    Lbl(#[from] self::lbl::EncodeError),
+    
+    #[error("{0}")]
+    As3(#[from] self::as3::EncodeError),
 }

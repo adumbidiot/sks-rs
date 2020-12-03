@@ -284,7 +284,8 @@ pub fn encode(blocks: &[Block], level_num: &LevelNum) -> Result<String, EncodeEr
 }
 
 /// Errors that can occur while encoding as3
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EncodeError {
+    #[error("invalid level length '{0}'")]
     InvalidLength(usize),
 }
