@@ -193,40 +193,59 @@ impl std::fmt::Display for LevelNum {
 }
 
 /// The errors reading an as3 file can have.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    /// Failed to lex as3
+    #[error("{0}")]
     Lexer(LexerError),
+
+    /// Failed to parse as3
+    #[error("{0}")]
     Parser(ParseError),
 
+    #[error("invalid base expression")]
     InvalidBaseExpr(Node),
+
+    #[error("invalid level height")]
     InvalidHeight(usize),
 
+    #[error("invalid global lhs expr")]
     InvalidGlobalLhsExpr(Node),
+    #[error("invalid lhs expr")]
     InvalidLhsExpr(Node),
 
+    #[error("invalid level array name expr")]
     InvalidLevelArrayNameExpr(Node),
+    #[error("invalid level array name")]
     InvalidLevelArrayName(String),
 
+    #[error("invalid level num expr")]
     InvalidLevelNumExpr(Node),
+    #[error("invalid level num")]
     InvalidLevelNum {
         expected: LevelNum,
         actual: LevelNum,
     },
 
+    #[error("invalid row num expr")]
     InvalidRowNumExpr(Node),
-    InvalidRowNum {
-        expected: usize,
-        actual: usize,
-    },
+    #[error("invalid row num num")]
+    InvalidRowNum { expected: usize, actual: usize },
 
+    #[error("invalid row expr")]
     InvalidRowExpr(Node),
+    #[error("invalid width")]
     InvalidWidth(usize),
 
+    #[error("invalid cell expr")]
     InvalidCellExpr(Node),
+    #[error("invalid lbl")]
     InvalidLbl(String),
 
+    #[error("invalid level size")]
     InvalidLevelSize(usize),
 
+    #[error("missing level num")]
     MissingLevelNum,
 }
 

@@ -17,9 +17,14 @@ pub fn decode(data: &str) -> Result<Vec<Block>, DecodeError> {
 }
 
 /// Errors that can occur while parsing an lbl file
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    /// Invalid lbl
+    #[error("unknown lbl '{0}'")]
     UnknownLbl(String),
+
+    /// Invalid level length
+    #[error("invalid length '{0}'")]
     InvalidLength(usize),
 }
 
@@ -40,7 +45,8 @@ pub fn encode(blocks: &[Block]) -> Result<String, EncodeError> {
 }
 
 /// Errors that can occur while encoding a level as lbl
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EncodeError {
+    #[error("invalid length '{0}'")]
     InvalidLength(usize),
 }

@@ -174,7 +174,7 @@ impl Block {
     pub fn is_note(&self) -> bool {
         matches!(self, Self::Note { .. })
     }
-    
+
     /// Returns true if this block has a direction.
     pub fn is_directional(&self) -> bool {
         matches!(self, Self::OneWayWall { .. })

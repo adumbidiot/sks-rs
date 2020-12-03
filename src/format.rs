@@ -42,11 +42,19 @@ pub fn decode(data: &str) -> Result<(Option<self::as3::LevelNum>, Vec<Block>), D
 }
 
 /// Errors that can occur while decoding a file of unknown type
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    /// Failed to guess file format
+    #[error("unknown file format")]
     UnknownFileFormat,
-    Lbl(self::lbl::DecodeError),
-    As3(self::as3::DecodeError),
+
+    /// LBL decode error
+    #[error("{0}")]
+    Lbl(#[from] self::lbl::DecodeError),
+
+    /// As3 decode error
+    #[error("{0}")]
+    As3(#[from] self::as3::DecodeError),
 }
 
 /// Try to decode a file to a format. level_num is not needed for lbl.
