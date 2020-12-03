@@ -24,7 +24,10 @@ exceptions = []
 [bans]
 multiple-versions = "deny"
 highlight = "all"
-skip = []
+skip = [
+    # Blocked on png updating miniz_oxide to 0.4.x
+    { name = "miniz_oxide", version = "0.3.6" },
+]
 
 # Mostly soundness denies since the advisory lacks a section for soundess bugs
 deny = [
