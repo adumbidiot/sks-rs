@@ -32,10 +32,8 @@ pub fn guess_format(data: &str) -> Option<FileFormat> {
 pub fn decode(data: &str) -> Result<(Option<self::as3::LevelNum>, Vec<Block>), DecodeError> {
     let fmt = guess_format(data).ok_or(DecodeError::UnknownFileFormat)?;
     match fmt {
-        FileFormat::Lbl => Ok(self::lbl::decode(data)
-            .map(|el| (None, el))?),
-        FileFormat::As3 => Ok(self::as3::decode(data)
-            .map(|(n, el)| (Some(n), el))?),
+        FileFormat::Lbl => Ok(self::lbl::decode(data).map(|el| (None, el))?),
+        FileFormat::As3 => Ok(self::as3::decode(data).map(|(n, el)| (Some(n), el))?),
     }
 }
 
@@ -75,10 +73,10 @@ pub fn encode(
 pub enum EncodeError {
     #[error("missing level number")]
     MissingLevelNum,
-    
+
     #[error("{0}")]
     Lbl(#[from] self::lbl::EncodeError),
-    
+
     #[error("{0}")]
     As3(#[from] self::as3::EncodeError),
 }
