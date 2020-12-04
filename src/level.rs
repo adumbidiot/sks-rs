@@ -1,15 +1,25 @@
 use crate::{
     block::BackgroundType,
+    format::LevelNumber,
     Block,
     LEVEL_SIZE,
 };
+use std::convert::TryInto;
 
 /// A Game Level
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Level {
+    /// Internal level data. Does not contain logic types.
     level_data: Vec<Block>,
+
+    /// Whether the level is dark
     is_dark: bool,
+
+    /// Background type
     background: BackgroundType,
+
+    /// Level Number
+    level_number: Option<LevelNumber>,
 }
 
 impl Level {
@@ -19,6 +29,8 @@ impl Level {
             level_data: vec![Block::Empty; LEVEL_SIZE],
             is_dark: false,
             background: BackgroundType::Cobble,
+
+            level_number: None,
         }
     }
 
@@ -37,22 +49,26 @@ impl Level {
         }
     }
 
-    /// Tries to import a level from a block array
-    pub fn from_block_array(blocks: &[Block]) -> Option<Self> {
-        if blocks.len() != LEVEL_SIZE {
-            return None;
-        }
-
+    /// Tries to create a level from a block array
+    pub fn from_block_array(blocks: &[Block; LEVEL_SIZE]) -> Self {
         let mut level = Level::new();
+        level.import_block_array(blocks);
+        level
+    }
 
-        for (level_block, block) in level.level_data.iter_mut().zip(blocks.iter()) {
+    /// Tries to import a level from a block array
+    pub fn import_block_array(&mut self, blocks: &[Block; LEVEL_SIZE]) {
+        self.background = BackgroundType::Cobble;
+        self.is_dark = false;
+
+        for (level_block, block) in self.level_data.iter_mut().zip(blocks.iter()) {
             let block = match block {
                 Block::Background { background_type } => {
-                    level.background = background_type.clone();
+                    self.background = background_type.clone();
                     Block::Empty
                 }
                 Block::Dark => {
-                    level.is_dark = true;
+                    self.is_dark = true;
                     Block::Empty
                 }
                 b => b.clone(),
@@ -60,8 +76,19 @@ impl Level {
 
             *level_block = block;
         }
+    }
 
-        Some(level)
+    /// Guess format from string and try to import it
+    pub fn import_str(&mut self, data: &str) -> Result<(), crate::format::DecodeError> {
+        let (level_number, blocks) = crate::format::decode(data)?;
+        self.import_block_array(
+            blocks
+                .as_slice()
+                .try_into()
+                .expect("Vec is sized correctly"),
+        );
+        self.level_number = level_number;
+        Ok(())
     }
 
     /// Tries to export a block array
@@ -105,6 +132,16 @@ impl Level {
     /// Checks whether the level is dark
     pub fn is_dark(&self) -> bool {
         self.is_dark
+    }
+
+    /// Get the level number
+    pub fn get_level_number(&self) -> Option<&LevelNumber> {
+        self.level_number.as_ref()
+    }
+
+    /// Set the level number
+    pub fn set_level_number(&mut self, level_number: Option<LevelNumber>) {
+        self.level_number = level_number;
     }
 }
 

@@ -1,4 +1,7 @@
-use crate::block::Block;
+use crate::{
+    block::Block,
+    format::LevelNumber,
+};
 use boa::syntax::{
     ast::{
         constant::Const,
@@ -14,10 +17,67 @@ use boa::syntax::{
     },
 };
 
+/// The errors reading an as3 file can have.
+#[derive(Debug, thiserror::Error)]
+pub enum DecodeError {
+    /// Failed to lex as3
+    #[error("{0}")]
+    Lexer(#[from] LexerError),
+
+    /// Failed to parse as3
+    #[error("{0}")]
+    Parser(ParseError),
+
+    #[error("invalid base expression")]
+    InvalidBaseExpr(Node),
+
+    #[error("invalid level height")]
+    InvalidHeight(usize),
+
+    #[error("invalid global lhs expr")]
+    InvalidGlobalLhsExpr(Node),
+    #[error("invalid lhs expr")]
+    InvalidLhsExpr(Node),
+
+    #[error("invalid level array name expr")]
+    InvalidLevelArrayNameExpr(Node),
+    #[error("invalid level array name")]
+    InvalidLevelArrayName(String),
+
+    #[error("invalid level num expr")]
+    InvalidLevelNumExpr(Node),
+    #[error("invalid level num")]
+    InvalidLevelNum {
+        expected: LevelNumber,
+        actual: LevelNumber,
+    },
+
+    #[error("invalid row num expr")]
+    InvalidRowNumExpr(Node),
+    #[error("invalid row num num")]
+    InvalidRowNum { expected: usize, actual: usize },
+
+    #[error("invalid row expr")]
+    InvalidRowExpr(Node),
+    #[error("invalid width")]
+    InvalidWidth(usize),
+
+    #[error("invalid cell expr")]
+    InvalidCellExpr(Node),
+    #[error("invalid lbl")]
+    InvalidLbl(String),
+
+    #[error("invalid level size")]
+    InvalidLevelSize(usize),
+
+    #[error("missing level number")]
+    MissingLevelNumber,
+}
+
 /// Try to decode a string as an as3 file format. View the tests to see what a valid file of this kind looks like.
-pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
+pub fn decode(data: &str) -> Result<(LevelNumber, Vec<Block>), DecodeError> {
     let mut lexer = Lexer::new(data);
-    lexer.lex().map_err(DecodeError::Lexer)?;
+    lexer.lex()?;
 
     let mut parser = Parser::new(&lexer.tokens);
     let node = parser.parse_all().map_err(DecodeError::Parser)?;
@@ -25,7 +85,7 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
     match &node {
         Node::StatementList(exprs) => {
             let mut height = 0;
-            let mut level_num: Option<LevelNum> = None;
+            let mut level_num: Option<LevelNumber> = None;
             let mut ret = Vec::with_capacity(crate::LEVEL_SIZE);
 
             for (i, (lhs, rhs)) in exprs
@@ -65,13 +125,13 @@ pub fn decode(data: &str) -> Result<(LevelNum, Vec<Block>), DecodeError> {
                 return Err(DecodeError::InvalidLevelSize(size));
             }
 
-            Ok((level_num.ok_or(DecodeError::MissingLevelNum)?, ret))
+            Ok((level_num.ok_or(DecodeError::MissingLevelNumber)?, ret))
         }
         _ => Err(DecodeError::InvalidBaseExpr(node)),
     }
 }
 
-fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNum, DecodeError> {
+fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNumber, DecodeError> {
     match node {
         Node::GetField(lhs, rhs) => {
             validate_lhs_row_num(rhs, expected_row)?;
@@ -87,12 +147,12 @@ fn parse_lhs(node: &Node, expected_row: usize) -> Result<LevelNum, DecodeError> 
     }
 }
 
-fn parse_level_num(node: &Node) -> Result<LevelNum, DecodeError> {
+fn parse_level_num(node: &Node) -> Result<LevelNumber, DecodeError> {
     match &node {
-        Node::Const(Const::Num(n)) => Ok(LevelNum::Num(*n as usize)),
-        Node::Const(Const::Int(n)) => Ok(LevelNum::Num(*n as usize)),
-        Node::Const(Const::String(s)) => Ok(LevelNum::String(s.clone())),
-        Node::Local(s) => Ok(LevelNum::String(s.clone())),
+        Node::Const(Const::Num(n)) => Ok(LevelNumber::Number(*n as usize)),
+        Node::Const(Const::Int(n)) => Ok(LevelNumber::Number(*n as usize)),
+        Node::Const(Const::String(s)) => Ok(LevelNumber::String(s.clone())),
+        Node::Local(s) => Ok(LevelNumber::Identifier(s.clone())),
         _ => Err(DecodeError::InvalidLevelNumExpr(node.clone())),
     }
 }
@@ -176,81 +236,18 @@ fn parse_cell(node: &Node) -> Result<Block, DecodeError> {
     }
 }
 
-/// The level this file advertisies itself to be. While usually a number, like 0, It CAN be a literal, like: X. If a float is provided, it is casted to an int through truncating.
-#[derive(Debug, Clone, PartialEq)]
-pub enum LevelNum {
-    String(String),
-    Num(usize),
-}
-
-impl std::fmt::Display for LevelNum {
+impl std::fmt::Display for LevelNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::String(s) => s.fmt(f),
-            Self::Num(n) => n.fmt(f),
+            Self::Number(number) => number.fmt(f),
+            Self::String(string) => string.fmt(f),
+            Self::Identifier(ident) => ident.fmt(f),
         }
     }
 }
 
-/// The errors reading an as3 file can have.
-#[derive(Debug, thiserror::Error)]
-pub enum DecodeError {
-    /// Failed to lex as3
-    #[error("{0}")]
-    Lexer(LexerError),
-
-    /// Failed to parse as3
-    #[error("{0}")]
-    Parser(ParseError),
-
-    #[error("invalid base expression")]
-    InvalidBaseExpr(Node),
-
-    #[error("invalid level height")]
-    InvalidHeight(usize),
-
-    #[error("invalid global lhs expr")]
-    InvalidGlobalLhsExpr(Node),
-    #[error("invalid lhs expr")]
-    InvalidLhsExpr(Node),
-
-    #[error("invalid level array name expr")]
-    InvalidLevelArrayNameExpr(Node),
-    #[error("invalid level array name")]
-    InvalidLevelArrayName(String),
-
-    #[error("invalid level num expr")]
-    InvalidLevelNumExpr(Node),
-    #[error("invalid level num")]
-    InvalidLevelNum {
-        expected: LevelNum,
-        actual: LevelNum,
-    },
-
-    #[error("invalid row num expr")]
-    InvalidRowNumExpr(Node),
-    #[error("invalid row num num")]
-    InvalidRowNum { expected: usize, actual: usize },
-
-    #[error("invalid row expr")]
-    InvalidRowExpr(Node),
-    #[error("invalid width")]
-    InvalidWidth(usize),
-
-    #[error("invalid cell expr")]
-    InvalidCellExpr(Node),
-    #[error("invalid lbl")]
-    InvalidLbl(String),
-
-    #[error("invalid level size")]
-    InvalidLevelSize(usize),
-
-    #[error("missing level num")]
-    MissingLevelNum,
-}
-
 /// Encode blocks to as3
-pub fn encode(blocks: &[Block], level_num: &LevelNum) -> Result<String, EncodeError> {
+pub fn encode(blocks: &[Block], level_number: &LevelNumber) -> Result<String, EncodeError> {
     let len = blocks.len();
     if len != crate::LEVEL_SIZE {
         return Err(EncodeError::InvalidLength(len));
@@ -259,7 +256,7 @@ pub fn encode(blocks: &[Block], level_num: &LevelNum) -> Result<String, EncodeEr
     let mut ret = String::new(); //TODO: Find good size to preallocate
 
     for (i, row) in blocks.chunks(crate::LEVEL_WIDTH).enumerate() {
-        ret += &format!("lvlArray[{}][{}] = [", level_num, i);
+        ret += &format!("lvlArray[{}][{}] = [", level_number, i);
         for (j, block) in row.iter().enumerate() {
             match block {
                 Block::Note { .. } => {

@@ -29,7 +29,7 @@ pub fn guess_format(data: &str) -> Option<FileFormat> {
 }
 
 /// Try to decode a file of unknown type
-pub fn decode(data: &str) -> Result<(Option<self::as3::LevelNum>, Vec<Block>), DecodeError> {
+pub fn decode(data: &str) -> Result<(Option<LevelNumber>, Vec<Block>), DecodeError> {
     let fmt = guess_format(data).ok_or(DecodeError::UnknownFileFormat)?;
     match fmt {
         FileFormat::Lbl => Ok(self::lbl::decode(data).map(|el| (None, el))?),
@@ -57,14 +57,14 @@ pub enum DecodeError {
 pub fn encode(
     blocks: &[Block],
     format: &FileFormat,
-    level_num: Option<&self::as3::LevelNum>,
+    level_num: Option<&LevelNumber>,
 ) -> Result<String, EncodeError> {
     match format {
-        FileFormat::Lbl => self::lbl::encode(blocks).map_err(EncodeError::Lbl),
-        FileFormat::As3 => {
-            self::as3::encode(blocks, level_num.ok_or(EncodeError::MissingLevelNum)?)
-                .map_err(EncodeError::As3)
-        }
+        FileFormat::Lbl => Ok(self::lbl::encode(blocks)?),
+        FileFormat::As3 => Ok(self::as3::encode(
+            blocks,
+            level_num.ok_or(EncodeError::MissingLevelNum)?,
+        )?),
     }
 }
 
@@ -79,4 +79,19 @@ pub enum EncodeError {
 
     #[error("{0}")]
     As3(#[from] self::as3::EncodeError),
+}
+
+/// The level this file advertisies itself to be.
+/// While usually a number, like 0, It CAN be a literal, like: X.
+/// If a float is provided, it is casted to an int through truncating.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LevelNumber {
+    /// A level num like `3`.
+    Number(usize),
+
+    /// A string level num like `"123"`.
+    String(String),
+
+    /// An Identifier like `x`.
+    Identifier(String),
 }
