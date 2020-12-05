@@ -1,10 +1,25 @@
 use crate::{
     block::BackgroundType,
-    format::LevelNumber,
+    format::{
+        FileFormat,
+        LevelNumber,
+    },
     Block,
     LEVEL_SIZE,
 };
 use std::convert::TryInto;
+use crate::format::EncodeError;
+
+/// Errors that occur while interacting with level
+#[derive(Debug, thiserror::Error)]
+pub enum LevelError {
+    /// Could not encode the following logic blocks
+    #[error("extra logic blocks")]
+    ExtraLogicBlocks(Vec<Block>),
+    
+    #[error("{0}")]
+    Encode(#[from] EncodeError),
+}
 
 /// A Game Level
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
@@ -92,7 +107,7 @@ impl Level {
     }
 
     /// Tries to export a block array
-    pub fn export_block_array(&self) -> Option<Vec<Block>> {
+    pub fn export_block_array(&self) -> Result<Vec<Block>, LevelError> {
         let mut to_insert = Vec::with_capacity(2);
         if self.is_dark() {
             to_insert.push(Block::Dark);
@@ -118,10 +133,19 @@ impl Level {
             .collect();
 
         if to_insert.is_empty() {
-            Some(data)
+            Ok(data)
         } else {
-            None
+            Err(LevelError::ExtraLogicBlocks(to_insert))
         }
+    }
+
+    /// Try to export the level as a string with the given format
+    pub fn export_str(&self, format: FileFormat) -> Result<String, LevelError> {
+        Ok(crate::format::encode(
+            &self.export_block_array()?,
+            &format,
+            self.level_number.as_ref(),
+        )?)
     }
 
     /// Sets whether the level is dark
