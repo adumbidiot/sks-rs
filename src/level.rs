@@ -1,6 +1,7 @@
 use crate::{
     block::BackgroundType,
     format::{
+        EncodeError,
         FileFormat,
         LevelNumber,
     },
@@ -8,7 +9,6 @@ use crate::{
     LEVEL_SIZE,
 };
 use std::convert::TryInto;
-use crate::format::EncodeError;
 
 /// Errors that occur while interacting with level
 #[derive(Debug, thiserror::Error)]
@@ -16,7 +16,7 @@ pub enum LevelError {
     /// Could not encode the following logic blocks
     #[error("extra logic blocks")]
     ExtraLogicBlocks(Vec<Block>),
-    
+
     #[error("{0}")]
     Encode(#[from] EncodeError),
 }
