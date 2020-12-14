@@ -29,45 +29,69 @@ pub fn guess_format(data: &str) -> Option<FileFormat> {
 }
 
 /// Try to decode a file of unknown type
-pub fn decode(data: &str) -> Result<(Option<self::as3::LevelNum>, Vec<Block>), DecodeError> {
+pub fn decode(data: &str) -> Result<(Option<LevelNumber>, Vec<Block>), DecodeError> {
     let fmt = guess_format(data).ok_or(DecodeError::UnknownFileFormat)?;
     match fmt {
-        FileFormat::Lbl => crate::format::lbl::decode(data)
-            .map_err(DecodeError::Lbl)
-            .map(|el| (None, el)),
-        FileFormat::As3 => crate::format::as3::decode(data)
-            .map_err(DecodeError::As3)
-            .map(|(n, el)| (Some(n), el)),
+        FileFormat::Lbl => Ok(self::lbl::decode(data).map(|el| (None, el))?),
+        FileFormat::As3 => Ok(self::as3::decode(data).map(|(n, el)| (Some(n), el))?),
     }
 }
 
 /// Errors that can occur while decoding a file of unknown type
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    /// Failed to guess file format
+    #[error("unknown file format")]
     UnknownFileFormat,
-    Lbl(self::lbl::DecodeError),
-    As3(self::as3::DecodeError),
+
+    /// LBL decode error
+    #[error("{0}")]
+    Lbl(#[from] self::lbl::DecodeError),
+
+    /// As3 decode error
+    #[error("{0}")]
+    As3(#[from] self::as3::DecodeError),
 }
 
 /// Try to decode a file to a format. level_num is not needed for lbl.
 pub fn encode(
     blocks: &[Block],
     format: &FileFormat,
-    level_num: Option<&self::as3::LevelNum>,
+    level_num: Option<&LevelNumber>,
 ) -> Result<String, EncodeError> {
     match format {
-        FileFormat::Lbl => self::lbl::encode(blocks).map_err(EncodeError::Lbl),
-        FileFormat::As3 => {
-            self::as3::encode(blocks, level_num.ok_or(EncodeError::MissingLevelNum)?)
-                .map_err(EncodeError::As3)
-        }
+        FileFormat::Lbl => Ok(self::lbl::encode(blocks)?),
+        FileFormat::As3 => Ok(self::as3::encode(
+            blocks,
+            level_num.ok_or(EncodeError::MissingLevelNum)?,
+        )?),
     }
 }
 
 /// Errors that can occur while encoding files
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EncodeError {
+    #[error("missing level number")]
     MissingLevelNum,
-    Lbl(self::lbl::EncodeError),
-    As3(self::as3::EncodeError),
+
+    #[error("{0}")]
+    Lbl(#[from] self::lbl::EncodeError),
+
+    #[error("{0}")]
+    As3(#[from] self::as3::EncodeError),
+}
+
+/// The level this file advertisies itself to be.
+/// While usually a number, like 0, It CAN be a literal, like: X.
+/// If a float is provided, it is casted to an int through truncating.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LevelNumber {
+    /// A level num like `3`.
+    Number(usize),
+
+    /// A string level num like `"123"`.
+    String(String),
+
+    /// An Identifier like `x`.
+    Identifier(String),
 }

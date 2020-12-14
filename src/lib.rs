@@ -2,6 +2,8 @@
 pub mod block;
 /// Utilities for working with file formats
 pub mod format;
+/// Utilities for level representation
+pub mod level;
 /// Utilities for rendering blocks
 pub mod render;
 
@@ -12,4 +14,7 @@ pub const LEVEL_HEIGHT: usize = 18;
 /// The length of a level, in blocks. Equal to width * height.
 pub const LEVEL_SIZE: usize = LEVEL_WIDTH * LEVEL_HEIGHT;
 
-pub use crate::block::Block;
+pub use crate::{
+    block::Block,
+    level::Level,
+};

@@ -160,19 +160,24 @@ impl Block {
         }
     }
 
-    /// Return true if is is empty
+    /// Return true if is is empty.
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty { .. })
     }
 
-    /// Returns true if it is a background
+    /// Returns true if it is a background.
     pub fn is_background(&self) -> bool {
         matches!(self, Self::Background { .. })
     }
 
-    /// Returns true if it is a note
+    /// Returns true if it is a note.
     pub fn is_note(&self) -> bool {
         matches!(self, Self::Note { .. })
+    }
+
+    /// Returns true if this block has a direction.
+    pub fn is_directional(&self) -> bool {
+        matches!(self, Self::OneWayWall { .. })
     }
 }
 
